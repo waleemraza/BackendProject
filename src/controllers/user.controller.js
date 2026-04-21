@@ -117,6 +117,10 @@ const generateAccessAndRefreshTokens = async(userId) => {
         }
 
        const {accessToken, refreshToken} =  await generateAccessAndRefreshTokens(user._id)
+//        user.refreshToken = refreshToken;
+//        await user.save({ validateBeforeSave: false });
+
+// console.log("LOGIN DB TOKEN:", user.refreshToken);
 
        const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 
@@ -146,8 +150,8 @@ const generateAccessAndRefreshTokens = async(userId) => {
         await User.findByIdAndUpdate(
             req.user._id,
             {
-                $set: {
-                    refreshToken: undefined
+                $unset: {
+                    refreshToken: 1
                 }
             },
             {
@@ -178,11 +182,13 @@ const generateAccessAndRefreshTokens = async(userId) => {
           incomingRefreshToken,
           process.env.REFRESH_TOKEN_SECRET
          )
-         const user = await User.findById(decodedToken?.id)
+         const user = await User.findById(decodedToken?._id)
   
          if (!user) {
           throw new ApiError(401, "Invalid refresh Token") 
          }
+         console.log("Incoming:", incomingRefreshToken);
+         console.log("DB:", user.refreshToken);
          if (incomingRefreshToken !== user?.refreshToken) {
           throw new ApiError(401, "RfreshToken is expore or used")
          }
@@ -192,6 +198,8 @@ const generateAccessAndRefreshTokens = async(userId) => {
           secure: true
          }
          const {accessToken, newrefreshToken} = await generateAccessAndRefreshTokens(user._id)
+        //  user.refreshToken = newrefreshToken;
+        // await user.save({ validateBeforeSave: false });
   
          return res
          .status(200)
@@ -213,8 +221,11 @@ const generateAccessAndRefreshTokens = async(userId) => {
 
     const changeCurrentPassword = asyncHandler(async(req, res) => {
         const {oldPassword, newPassword} = req.body
+       // console.log("BODY:", req.body);
         const user = await User.findById(req.user?._id)
-        const isPasswordCorrect = user.isPasswordCorrect(oldPassword)
+        // console.log("USER PASSWORD:", user?.password);
+        // console.log("OLD PASSWORD:", req.body?.oldPassword);
+        const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
         if(!isPasswordCorrect){
             throw new ApiError(400, "Invalid old password")
         }
@@ -367,12 +378,11 @@ const generateAccessAndRefreshTokens = async(userId) => {
         ])
         if(!channel?.length){
             throw new ApiError(404, "channel does not exist")
-
-        return res.status(200)
+        }
+         return res.status(200)
         .json(
             new ApiResponse(200, channel[0], "user channel fetched successfully")
         )    
-        }
     })
 
     const getWatchHistory = asyncHandler(async(req, res) => {
@@ -398,7 +408,7 @@ const generateAccessAndRefreshTokens = async(userId) => {
                             pipeline: [
 
                                 {
-                                    $projects: {
+                                    $project: {
                                         fullName: 1,
                                         username: 1,
                                         avatar: 1
@@ -430,7 +440,7 @@ const generateAccessAndRefreshTokens = async(userId) => {
 
     })
 
-    
+
 
 
     export {
